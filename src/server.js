@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { config } from './config.js';
 import {
   createReferrer, getReferrerByUsername, addReferral, getLeaderboard, getReferralsFor,
@@ -117,6 +118,6 @@ export function createServer() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   createServer().listen(config.port, () => console.log(`Referral tracker running at ${config.baseUrl}`));
 }
