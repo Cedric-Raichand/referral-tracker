@@ -1,0 +1,12 @@
+{
+  "name": "referral-tracker",
+  "version": "0.1.0",
+  "description": "Referral tracking for community groups (WhatsApp, Snapchat, Instagram)",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test"
+  }
+}
