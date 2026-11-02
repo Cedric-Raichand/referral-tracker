@@ -3,10 +3,12 @@ import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { config } from './config.js';
 import {
-  createReferrer, getReferrerByUsername, getReferrerById, addReferral, getLeaderboard,
+  storageKind, createReferrer, getReferrerByUsername, getReferrerById, addReferral, getLeaderboard,
   getReferralsFor, getReferralById, setConfirmed,
-  normalizePhone, normalizeUsername, normalizeContact, isValidPhone, isValidUsername, isValidContact,
 } from './db.js';
+import {
+  normalizePhone, normalizeUsername, normalizeContact, isValidPhone, isValidUsername, isValidContact,
+} from './validate.js';
 import { registerPage, linksPage, joinPage, joinedPage, adminPage, adminReferrerPage, notFoundPage } from './views.js';
 
 function send(res, status, body, headers = {}) {
@@ -74,21 +76,21 @@ export async function handle(req, res) {
     if (!isValidUsername(username)) {
       return send(res, 400, registerPage({ error: 'Username must be 3-20 characters: letters, numbers or underscore.', values }));
     }
-    const result = createReferrer({ name, phone, username });
+    const result = await createReferrer({ name, phone, username });
     if (!result.ok) return send(res, 409, registerPage({ error: 'That username is taken. Try another.', values }));
     return redirect(res, `/links/${encodeURIComponent(username)}`);
   }
 
   let m = path.match(/^\/links\/([^/]+)$/);
   if (method === 'GET' && m) {
-    const referrer = getReferrerByUsername(normalizeUsername(decodeURIComponent(m[1])));
+    const referrer = await getReferrerByUsername(normalizeUsername(decodeURIComponent(m[1])));
     if (!referrer) return send(res, 404, notFoundPage('We could not find that username.'));
     return send(res, 200, linksPage(referrer));
   }
 
   m = path.match(/^\/r\/([^/]+)\/([^/]+)$/);
   if (m && (method === 'GET' || method === 'POST')) {
-    const referrer = getReferrerByUsername(normalizeUsername(decodeURIComponent(m[1])));
+    const referrer = await getReferrerByUsername(normalizeUsername(decodeURIComponent(m[1])));
     const platformKey = decodeURIComponent(m[2]);
     const platform = config.platforms[platformKey];
     if (!referrer || !platform) return send(res, 404, notFoundPage('This invite link is not valid.'));
@@ -109,7 +111,7 @@ export async function handle(req, res) {
       return send(res, 400, joinPage({ referrer, platformKey, error, values }));
     }
 
-    const result = addReferral({ referrer, platform: platformKey, name, contact });
+    const result = await addReferral({ referrer, platform: platformKey, name, contact });
     if (!result.ok && result.reason === 'self_referral') {
       return send(res, 400, joinPage({ referrer, platformKey, error: 'You cannot refer yourself.', values }));
     }
@@ -120,19 +122,19 @@ export async function handle(req, res) {
     if (!isAdmin(req)) return askForLogin(res);
     if (!isSameSite(req)) return send(res, 403, notFoundPage('Request blocked.'));
     const form = await readForm(req);
-    const referral = getReferralById(Number(form.id));
+    const referral = await getReferralById(form.id);
     if (!referral) return send(res, 404, notFoundPage('That person was not found.'));
-    setConfirmed(referral.id, form.value === '1');
-    const referrer = getReferrerById(referral.referrer_id);
+    await setConfirmed(referral.id, form.value === '1');
+    const referrer = await getReferrerById(referral.referrer_id);
     return redirect(res, `/admin/${encodeURIComponent(referrer.username)}`);
   }
 
   if (method === 'GET' && (path === '/admin' || path.startsWith('/admin/'))) {
     if (!isAdmin(req)) return askForLogin(res);
-    if (path === '/admin') return send(res, 200, adminPage({ leaderboard: getLeaderboard() }));
-    const referrer = getReferrerByUsername(normalizeUsername(decodeURIComponent(path.slice(7))));
+    if (path === '/admin') return send(res, 200, adminPage({ leaderboard: await getLeaderboard() }));
+    const referrer = await getReferrerByUsername(normalizeUsername(decodeURIComponent(path.slice(7))));
     if (!referrer) return send(res, 404, notFoundPage('Referrer not found.'));
-    return send(res, 200, adminReferrerPage({ referrer, referrals: getReferralsFor(referrer.id) }));
+    return send(res, 200, adminReferrerPage({ referrer, referrals: await getReferralsFor(referrer.id) }));
   }
 
   return send(res, 404, notFoundPage());
@@ -148,5 +150,5 @@ export function createServer() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  createServer().listen(config.port, () => console.log(`Referral tracker running at ${config.baseUrl}`));
+  createServer().listen(config.port, () => console.log(`Referral tracker running at ${config.baseUrl} (storage: ${storageKind})`));
 }
