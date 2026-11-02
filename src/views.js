@@ -31,6 +31,7 @@ const css = `
   td.num,th.num{text-align:right}
   .scroll{overflow-x:auto}
   a{color:#1f7a4d}
+  .foot{text-align:center;font-size:.85rem;margin-top:8px}
 `;
 
 export function layout(title, body, { wide = false } = {}) {
@@ -60,7 +61,8 @@ export function registerPage({ error = '', values = {} } = {}) {
                placeholder="letters, numbers, underscore" value="${esc(values.username)}">
         <button type="submit">Get my links</button>
       </form>
-    </div>`,
+    </div>
+    <p class="foot"><a href="/admin">Admin login</a></p>`,
   );
 }
 
@@ -128,6 +130,11 @@ export function joinedPage({ referrer, platformKey, counted }) {
       <h1>${counted ? 'Done' : 'Already counted'}</h1>
       <p>${note}</p>
       <a class="btn" href="${esc(platform.url)}">Open ${esc(platform.label)}</a>
+    </div>
+    <div class="card">
+      <h2>Want to invite people too?</h2>
+      <p>Register as a referrer to get your own links. Everyone who joins through them is counted for you.</p>
+      <a class="btn" href="/">Register as a referrer</a>
     </div>`,
   );
 }
