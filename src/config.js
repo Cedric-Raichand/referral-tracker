@@ -4,6 +4,9 @@ export const config = {
   port: Number(env.PORT) || 3000,
   baseUrl: (env.BASE_URL || `http://localhost:${env.PORT || 3000}`).replace(/\/$/, ''),
   adminPassword: env.ADMIN_PASSWORD || 'change-me',
+  // If MONGODB_URI is set the app stores data in MongoDB Atlas, otherwise in a local SQLite file.
+  mongoUri: env.MONGODB_URI || '',
+  mongoDb: env.MONGODB_DB || 'referral_tracker',
   dbPath: env.DB_PATH || 'data/referrals.db',
   // Platform key -> label, where to send the new member, and what we ask them for.
   // contact 'phone' = phone number (matches the WhatsApp member list)
