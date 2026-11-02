@@ -3,8 +3,9 @@ import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { config } from './config.js';
 import {
-  createReferrer, getReferrerByUsername, addReferral, getLeaderboard, getReferralsFor,
-  normalizePhone, normalizeUsername, isValidPhone, isValidUsername,
+  createReferrer, getReferrerByUsername, getReferrerById, addReferral, getLeaderboard,
+  getReferralsFor, getReferralById, setConfirmed,
+  normalizePhone, normalizeUsername, normalizeContact, isValidPhone, isValidUsername, isValidContact,
 } from './db.js';
 import { registerPage, linksPage, joinPage, joinedPage, adminPage, adminReferrerPage, notFoundPage } from './views.js';
 
@@ -26,6 +27,17 @@ function isAdmin(req) {
   const a = Buffer.from(password);
   const b = Buffer.from(config.adminPassword);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Block form posts that come from another website (the browser sends an Origin header). */
+function isSameSite(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch {
+    return false;
+  }
 }
 
 function askForLogin(res) {
@@ -86,16 +98,33 @@ export async function handle(req, res) {
 
     const form = await readForm(req);
     const name = String(form.name || '').trim().slice(0, 60);
-    const phone = normalizePhone(form.phone);
-    const values = { name, phone: form.phone };
+    const contact = normalizeContact(platformKey, form.contact);
+    const values = { name, contact: form.contact };
     if (!name) return send(res, 400, joinPage({ referrer, platformKey, error: 'Please enter your name.', values }));
-    if (!isValidPhone(phone)) return send(res, 400, joinPage({ referrer, platformKey, error: 'Please enter a valid phone number.', values }));
+    if (!isValidContact(platformKey, contact)) {
+      const error =
+        platform.contact === 'username'
+          ? 'Please enter a valid username (letters, numbers, dots, dashes or underscores).'
+          : 'Please enter a valid phone number.';
+      return send(res, 400, joinPage({ referrer, platformKey, error, values }));
+    }
 
-    const result = addReferral({ referrer, platform: platformKey, name, phone });
+    const result = addReferral({ referrer, platform: platformKey, name, contact });
     if (!result.ok && result.reason === 'self_referral') {
       return send(res, 400, joinPage({ referrer, platformKey, error: 'You cannot refer yourself.', values }));
     }
     return send(res, 200, joinedPage({ referrer, platformKey, counted: result.ok }));
+  }
+
+  if (method === 'POST' && path === '/admin/confirm') {
+    if (!isAdmin(req)) return askForLogin(res);
+    if (!isSameSite(req)) return send(res, 403, notFoundPage('Request blocked.'));
+    const form = await readForm(req);
+    const referral = getReferralById(Number(form.id));
+    if (!referral) return send(res, 404, notFoundPage('That person was not found.'));
+    setConfirmed(referral.id, form.value === '1');
+    const referrer = getReferrerById(referral.referrer_id);
+    return redirect(res, `/admin/${encodeURIComponent(referrer.username)}`);
   }
 
   if (method === 'GET' && (path === '/admin' || path.startsWith('/admin/'))) {
