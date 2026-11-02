@@ -5,11 +5,13 @@ export const config = {
   baseUrl: (env.BASE_URL || `http://localhost:${env.PORT || 3000}`).replace(/\/$/, ''),
   adminPassword: env.ADMIN_PASSWORD || 'change-me',
   dbPath: env.DB_PATH || 'data/referrals.db',
-  // Platform key -> label + where to send the new member
+  // Platform key -> label, where to send the new member, and what we ask them for.
+  // contact 'phone' = phone number (matches the WhatsApp member list)
+  // contact 'username' = their handle (matches the Snapchat friends / Instagram followers list)
   platforms: {
-    whatsapp: { label: 'WhatsApp group', url: env.WHATSAPP_URL || '' },
-    snapchat: { label: 'Snapchat', url: env.SNAPCHAT_URL || '' },
-    instagram: { label: 'Instagram', url: env.INSTAGRAM_URL || '' },
+    whatsapp: { label: 'WhatsApp group', url: env.WHATSAPP_URL || '', contact: 'phone' },
+    snapchat: { label: 'Snapchat', url: env.SNAPCHAT_URL || '', contact: 'username' },
+    instagram: { label: 'Instagram', url: env.INSTAGRAM_URL || '', contact: 'username' },
   },
 };
 
