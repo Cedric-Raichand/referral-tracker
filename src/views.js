@@ -32,6 +32,10 @@ const css = `
   .scroll{overflow-x:auto}
   a{color:#1f7a4d}
   .foot{text-align:center;font-size:.85rem;margin-top:8px}
+  .small{width:auto;margin:0;padding:8px 12px;font-size:.85rem}
+  .grey{background:#6b7280}
+  .ok{color:#1f7a4d;font-weight:600;white-space:nowrap}
+  form.inline{margin:0}
 `;
 
 export function layout(title, body, { wide = false } = {}) {
@@ -100,8 +104,16 @@ export function notFoundPage(message = 'Page not found.') {
   return layout('Not found', `<div class="card"><h1>Oops</h1><p>${esc(message)}</p><p><a href="/">Go home</a></p></div>`);
 }
 
+const contactFields = {
+  phone: { label: 'Your phone number', type: 'tel', placeholder: '0241234567' },
+  username: { label: 'Your username', type: 'text', placeholder: 'your handle, without @' },
+};
+
 export function joinPage({ referrer, platformKey, error = '', values = {} }) {
   const platform = config.platforms[platformKey];
+  const field = contactFields[platform.contact];
+  const label =
+    platform.contact === 'username' ? `Your ${platform.label} username` : field.label;
   return layout(
     `Join ${platform.label}`,
     `<div class="card">
@@ -111,8 +123,8 @@ export function joinPage({ referrer, platformKey, error = '', values = {} }) {
       <form method="post" action="/r/${encodeURIComponent(referrer.username)}/${esc(platformKey)}">
         <label for="name">Your name</label>
         <input id="name" name="name" required maxlength="60" value="${esc(values.name)}">
-        <label for="phone">Your phone number</label>
-        <input id="phone" name="phone" type="tel" required placeholder="0241234567" value="${esc(values.phone)}">
+        <label for="contact">${esc(label)}</label>
+        <input id="contact" name="contact" type="${field.type}" required placeholder="${esc(field.placeholder)}" value="${esc(values.contact)}">
         <button type="submit">Continue to ${esc(platform.label)}</button>
       </form>
     </div>`,
@@ -150,18 +162,21 @@ export function adminPage({ leaderboard }) {
         <td><a href="/admin/${encodeURIComponent(r.username)}">${esc(r.name)}</a><br><small>${esc(r.username)} &middot; ${esc(r.phone)}</small></td>
         ${Object.keys(config.platforms).map((k) => `<td class="num">${r[k]}</td>`).join('')}
         <td class="num"><strong>${r.total}</strong></td>
+        <td class="num"><strong>${r.confirmed}</strong></td>
       </tr>`,
     )
     .join('');
   const total = leaderboard.reduce((sum, r) => sum + r.total, 0);
+  const confirmed = leaderboard.reduce((sum, r) => sum + r.confirmed, 0);
   return layout(
     'Admin',
     `<div class="card">
       <h1>Referral dashboard</h1>
-      <p>${leaderboard.length} referrers &middot; ${total} confirmed joins</p>
+      <p>${leaderboard.length} referrers &middot; ${total} referred &middot; ${confirmed} confirmed</p>
+      <p><small><strong>Referred</strong> = came through the link and filled in the form. <strong>Confirmed</strong> = you checked they really joined. Open a referrer to confirm people.</small></p>
       <div class="scroll"><table>
-        <tr><th>#</th><th>Referrer</th>${platformCols}<th class="num">Total</th></tr>
-        ${rows || '<tr><td colspan="9">No referrers yet.</td></tr>'}
+        <tr><th>#</th><th>Referrer</th>${platformCols}<th class="num">Referred</th><th class="num">Confirmed</th></tr>
+        ${rows || '<tr><td colspan="8">No referrers yet.</td></tr>'}
       </table></div>
     </div>`,
     { wide: true },
@@ -169,24 +184,39 @@ export function adminPage({ leaderboard }) {
 }
 
 export function adminReferrerPage({ referrer, referrals }) {
+  const confirmedCount = referrals.filter((f) => f.confirmed).length;
   const rows = referrals
-    .map(
-      (f) => `<tr>
-        <td>${esc(f.name)}</td><td>${esc(f.phone)}</td>
+    .map((f) => {
+      const isUser = config.platforms[f.platform]?.contact === 'username';
+      const contact = isUser ? `@${esc(f.contact)}` : esc(f.contact);
+      const action = f.confirmed
+        ? `<span class="ok">Confirmed &#10003;</span>
+           <form class="inline" method="post" action="/admin/confirm">
+             <input type="hidden" name="id" value="${f.id}"><input type="hidden" name="value" value="0">
+             <button class="small grey" type="submit">Undo</button>
+           </form>`
+        : `<form class="inline" method="post" action="/admin/confirm">
+             <input type="hidden" name="id" value="${f.id}"><input type="hidden" name="value" value="1">
+             <button class="small" type="submit">Confirm</button>
+           </form>`;
+      return `<tr>
+        <td>${esc(f.name)}</td><td>${contact}</td>
         <td>${esc(config.platforms[f.platform]?.label || f.platform)}</td>
         <td>${esc(f.created_at)} UTC</td>
-      </tr>`,
-    )
+        <td>${action}</td>
+      </tr>`;
+    })
     .join('');
   return layout(
     `Admin - ${referrer.username}`,
     `<div class="card">
       <p><a href="/admin">&larr; Back to dashboard</a></p>
       <h1>${esc(referrer.name)}</h1>
-      <p>${esc(referrer.username)} &middot; ${esc(referrer.phone)} &middot; ${referrals.length} joins</p>
+      <p>${esc(referrer.username)} &middot; ${esc(referrer.phone)} &middot; ${referrals.length} referred &middot; ${confirmedCount} confirmed</p>
+      <p><small>Check your real group members or followers, then tap Confirm next to each person you find there.</small></p>
       <div class="scroll"><table>
-        <tr><th>Name</th><th>Phone</th><th>Platform</th><th>Joined</th></tr>
-        ${rows || '<tr><td colspan="4">No joins yet.</td></tr>'}
+        <tr><th>Name</th><th>Contact</th><th>Platform</th><th>Joined</th><th></th></tr>
+        ${rows || '<tr><td colspan="5">No one referred yet.</td></tr>'}
       </table></div>
     </div>`,
     { wide: true },
