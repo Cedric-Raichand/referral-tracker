@@ -5,12 +5,13 @@ import { pathToFileURL } from 'node:url';
 import { config } from './config.js';
 import {
   storageKind, createReferrer, getReferrerByUsername, getReferrerById, addReferral, getLeaderboard,
-  getReferralsFor, getReferralById, setConfirmed,
+  getReferralsFor, getReferralById, setConfirmed, getReferralsByPlatform, setConfirmedMany,
 } from './db.js';
 import {
   normalizePhone, normalizeUsername, normalizeContact, isValidPhone, isValidUsername, isValidContact,
+  phoneKey, extractPhoneKeys,
 } from './validate.js';
-import { registerPage, linksPage, joinPage, joinedPage, adminPage, adminReferrerPage, notFoundPage } from './views.js';
+import { registerPage, linksPage, joinPage, joinedPage, adminPage, adminReferrerPage, choosePage, bulkPage, bulkResultPage, notFoundPage } from './views.js';
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', ...headers });
@@ -47,12 +48,12 @@ function askForLogin(res) {
   send(res, 401, notFoundPage('Admin login required.'), { 'WWW-Authenticate': 'Basic realm="Referral admin"' });
 }
 
-async function readForm(req) {
+async function readForm(req, limit = 20_000) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 20_000) throw new Error('Body too large');
+    if (size > limit) throw new Error('Body too large');
     chunks.push(chunk);
   }
   return Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString('utf8')));
@@ -87,6 +88,9 @@ export async function handle(req, res) {
     if (!isValidUsername(username)) {
       return send(res, 400, registerPage({ error: 'Username must be 3-20 characters: letters, numbers or underscore.', values }));
     }
+    if (['admin', 'bulk', 'confirm'].includes(username)) {
+      return send(res, 409, registerPage({ error: 'That username is taken. Try another.', values }));
+    }
     const result = await createReferrer({ name, phone, username });
     if (!result.ok) return send(res, 409, registerPage({ error: 'That username is taken. Try another.', values }));
     return redirect(res, `/links/${encodeURIComponent(username)}`);
@@ -97,6 +101,13 @@ export async function handle(req, res) {
     const referrer = await getReferrerByUsername(normalizeUsername(decodeURIComponent(m[1])));
     if (!referrer) return send(res, 404, notFoundPage('We could not find that username.'));
     return send(res, 200, linksPage(referrer));
+  }
+
+  m = path.match(/^\/r\/([^/]+)$/);
+  if (method === 'GET' && m) {
+    const referrer = await getReferrerByUsername(normalizeUsername(decodeURIComponent(m[1])));
+    if (!referrer) return send(res, 404, notFoundPage('This invite link is not valid.'));
+    return send(res, 200, choosePage(referrer));
   }
 
   m = path.match(/^\/r\/([^/]+)\/([^/]+)$/);
@@ -138,6 +149,32 @@ export async function handle(req, res) {
     await setConfirmed(referral.id, form.value === '1');
     const referrer = await getReferrerById(referral.referrer_id);
     return redirect(res, `/admin/${encodeURIComponent(referrer.username)}`);
+  }
+
+  if (path === '/admin/bulk' && (method === 'GET' || method === 'POST')) {
+    if (!isAdmin(req)) return askForLogin(res);
+    if (method === 'GET') return send(res, 200, bulkPage());
+    if (!isSameSite(req)) return send(res, 403, notFoundPage('Request blocked.'));
+
+    const form = await readForm(req, 300_000);
+    const keys = extractPhoneKeys(form.members);
+    if (!keys.size) {
+      return send(res, 400, bulkPage({ error: 'No phone numbers found. Paste the member list with numbers, one per line.' }));
+    }
+    const referred = await getReferralsByPlatform('whatsapp');
+    const matched = referred.filter((r) => keys.has(phoneKey(r.contact)));
+    const confirmedNow = matched.filter((r) => !r.confirmed);
+    await setConfirmedMany(confirmedNow.map((r) => r.id), true);
+    return send(
+      res,
+      200,
+      bulkResultPage({
+        found: keys.size,
+        confirmedNow,
+        alreadyConfirmed: matched.length - confirmedNow.length,
+        notFound: referred.length - matched.length,
+      }),
+    );
   }
 
   if (method === 'GET' && (path === '/admin' || path.startsWith('/admin/'))) {
