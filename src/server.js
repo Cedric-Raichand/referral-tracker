@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { readFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { config } from './config.js';
@@ -61,6 +62,16 @@ export async function handle(req, res) {
   const url = new URL(req.url, config.baseUrl);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   const method = req.method;
+
+  if (method === 'GET' && path === '/cover.png') {
+    try {
+      const image = await readFile(new URL('../public/cover.png', import.meta.url));
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+      return res.end(image);
+    } catch {
+      return send(res, 404, notFoundPage());
+    }
+  }
 
   if (method === 'GET' && path === '/') return send(res, 200, registerPage());
 
