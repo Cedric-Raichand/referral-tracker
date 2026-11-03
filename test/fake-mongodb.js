@@ -10,7 +10,11 @@ export class ObjectId {
 const dupError = () => Object.assign(new Error('E11000 duplicate key error'), { code: 11000 });
 const get = (doc, path) => (path === '_id' ? String(doc._id) : doc[path]);
 const matches = (doc, filter) =>
-  Object.entries(filter).every(([k, v]) => String(get(doc, k)) === String(v));
+  Object.entries(filter).every(([k, v]) =>
+    v && typeof v === 'object' && v.$in
+      ? v.$in.map(String).includes(String(get(doc, k)))
+      : String(get(doc, k)) === String(v),
+  );
 
 class Cursor {
   constructor(docs) { this.docs = docs; }
@@ -49,6 +53,11 @@ class Collection {
     if (!doc) return { matchedCount: 0 };
     Object.assign(doc, update.$set);
     return { matchedCount: 1 };
+  }
+  async updateMany(filter, update) {
+    const found = this.docs.filter((d) => matches(d, filter));
+    for (const d of found) Object.assign(d, update.$set);
+    return { matchedCount: found.length };
   }
   // Supports exactly the $group stage our leaderboard uses.
   aggregate(pipeline) {
