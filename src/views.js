@@ -38,12 +38,26 @@ const css = `
   form.inline{margin:0}
 `;
 
-export function layout(title, body, { wide = false } = {}) {
+export function layout(title, body, { wide = false, description = '', path = '' } = {}) {
+  const desc = description || 'Join through a friend’s link and get invited straight in.';
+  const image = `${config.baseUrl}/cover.png`;
+  // Open Graph tags make WhatsApp, Instagram, Snapchat etc. show a preview card with a cover image.
+  const preview = `
+<meta name="description" content="${esc(desc)}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${esc(config.siteName)}">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:image" content="${esc(image)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+${path ? `<meta property="og:url" content="${esc(config.baseUrl + path)}">` : ''}
+<meta name="twitter:card" content="summary_large_image">`;
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title>
+<title>${esc(title)}</title>${preview}
 <style>${css}</style>
 </head><body><main class="${wide ? 'wide' : ''}">${body}</main></body></html>`;
 }
@@ -67,6 +81,7 @@ export function registerPage({ error = '', values = {} } = {}) {
       </form>
     </div>
     <p class="foot"><a href="/admin">Admin login</a></p>`,
+    { description: 'Register to get your own links and get credit for everyone you bring in.', path: '/' },
   );
 }
 
@@ -115,7 +130,7 @@ export function joinPage({ referrer, platformKey, error = '', values = {} }) {
   const label =
     platform.contact === 'username' ? `Your ${platform.label} username` : field.label;
   return layout(
-    `Join ${platform.label}`,
+    `${referrer.name} invited you to join the ${platform.label}`,
     `<div class="card">
       <h1>Join the ${esc(platform.label)}</h1>
       <p>You were invited by <strong>${esc(referrer.name)}</strong> (${esc(referrer.username)}). Enter your details so the invite is credited to them, then you'll be taken straight in.</p>
@@ -128,6 +143,10 @@ export function joinPage({ referrer, platformKey, error = '', values = {} }) {
         <button type="submit">Continue to ${esc(platform.label)}</button>
       </form>
     </div>`,
+    {
+      description: `${referrer.name} invited you. Tap to join the ${platform.label}.`,
+      path: `/r/${encodeURIComponent(referrer.username)}/${platformKey}`,
+    },
   );
 }
 
