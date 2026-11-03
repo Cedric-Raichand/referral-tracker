@@ -14,6 +14,8 @@ export const {
   addReferral,
   getReferralById,
   setConfirmed,
+  getReferralsByPlatform,
+  setConfirmedMany,
   getLeaderboard,
   getReferralsFor,
 } = store;
