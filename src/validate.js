@@ -33,3 +33,24 @@ export function isValidContact(platformKey, value) {
   }
   return isValidPhone(value);
 }
+
+/**
+ * A phone number reduced to its last 9 digits, so "+233 24 123 4567" and "0241234567" match.
+ * Returns '' when there aren't enough digits to be a real number.
+ */
+export function phoneKey(input) {
+  const digits = String(input || '').replace(/\D/g, '');
+  return digits.length >= 9 ? digits.slice(-9) : '';
+}
+
+/** Pull every phone number out of pasted text (one per line or comma separated) as match keys. */
+export function extractPhoneKeys(text) {
+  const keys = new Set();
+  for (const m of String(text || '').matchAll(/\+?\d[\d \t().-]{7,}\d/g)) {
+    const digits = m[0].replace(/\D/g, '');
+    if (digits.length > 15) continue; // several numbers run together, skip rather than guess
+    const key = phoneKey(digits);
+    if (key) keys.add(key);
+  }
+  return keys;
+}
