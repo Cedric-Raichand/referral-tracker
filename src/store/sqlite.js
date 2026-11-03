@@ -94,6 +94,31 @@ export function createStore({ dbPath }) {
       return info.changes > 0;
     },
 
+    async getReferralsByPlatform(platform) {
+      return db
+        .prepare('SELECT id, name, contact, confirmed FROM referrals WHERE platform = ?')
+        .all(platform);
+    },
+
+    /** Confirm (or un-confirm) many people at once. Returns how many were changed. */
+    async setConfirmedMany(ids, confirmed) {
+      const when = confirmed ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null;
+      const update = db.prepare('UPDATE referrals SET confirmed = ?, confirmed_at = ? WHERE id = ?');
+      let changed = 0;
+      db.exec('BEGIN');
+      try {
+        for (const id of ids) {
+          const n = toId(id);
+          if (n) changed += Number(update.run(confirmed ? 1 : 0, when, n).changes);
+        }
+        db.exec('COMMIT');
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+      return changed;
+    },
+
     /** One row per referrer: referred per platform, total referred, and confirmed. Best first. */
     async getLeaderboard() {
       const rows = db
