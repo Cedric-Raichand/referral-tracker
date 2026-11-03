@@ -79,4 +79,23 @@ export function storeContract(label, makeStore) {
     const again = await store.getReferrerById(mary.id);
     assert.equal(again.username, 'mary');
   });
+
+  test(`${label}: list a platform's referrals and confirm many at once`, async () => {
+    const wa = await store.getReferralsByPlatform('whatsapp');
+    assert.equal(wa.length, 2);
+    assert.deepEqual(wa.map((r) => r.contact).sort(), ['0250000001', '0250000002']);
+    assert.equal((await store.getReferralsByPlatform('snapchat')).length, 0);
+
+    const changed = await store.setConfirmedMany(wa.map((r) => r.id), true);
+    assert.equal(changed, 2);
+    const after = await store.getReferralsByPlatform('whatsapp');
+    assert.equal(after.every((r) => r.confirmed), true);
+    const row = (await store.getLeaderboard()).find((r) => r.username === 'mary');
+    assert.equal(row.confirmed, 2);
+
+    assert.equal(await store.setConfirmedMany(['nope', '999999'], true), 0);
+    await store.setConfirmedMany(wa.map((r) => r.id), false);
+    const reset = await store.getReferralsByPlatform('whatsapp');
+    assert.equal(reset.every((r) => !r.confirmed), true);
+  });
 }
