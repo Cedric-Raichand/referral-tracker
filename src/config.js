@@ -3,6 +3,7 @@ const env = process.env;
 export const config = {
   port: Number(env.PORT) || 3000,
   baseUrl: (env.BASE_URL || `http://localhost:${env.PORT || 3000}`).replace(/\/$/, ''),
+  siteName: env.SITE_NAME || 'Join our community',
   adminPassword: env.ADMIN_PASSWORD || 'change-me',
   // If MONGODB_URI is set the app stores data in MongoDB Atlas, otherwise in a local SQLite file.
   mongoUri: env.MONGODB_URI || '',
