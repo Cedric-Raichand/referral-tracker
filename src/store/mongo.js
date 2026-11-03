@@ -86,6 +86,25 @@ export async function createStore({ mongoUri, mongoDb }, driver) {
       return result.matchedCount > 0;
     },
 
+    async getReferralsByPlatform(platform) {
+      const docs = await referrals.find({ platform }).toArray();
+      return docs.map((doc) => {
+        const row = toRow(doc);
+        return { id: row.id, name: row.name, contact: row.contact, confirmed: row.confirmed ? 1 : 0 };
+      });
+    },
+
+    /** Confirm (or un-confirm) many people at once. Returns how many were matched. */
+    async setConfirmedMany(ids, confirmed) {
+      const objectIds = ids.filter(isObjectIdString).map((id) => new ObjectId(String(id)));
+      if (!objectIds.length) return 0;
+      const result = await referrals.updateMany(
+        { _id: { $in: objectIds } },
+        { $set: { confirmed: Boolean(confirmed), confirmed_at: confirmed ? now() : null } },
+      );
+      return result.matchedCount;
+    },
+
     async getLeaderboard() {
       const [people, groups] = await Promise.all([
         referrers.find({}).toArray(),
