@@ -86,22 +86,17 @@ export function registerPage({ error = '', values = {} } = {}) {
 }
 
 export function linksPage(referrer) {
-  const boxes = Object.entries(config.platforms)
-    .map(([key, p]) => {
-      const link = `${config.baseUrl}/r/${encodeURIComponent(referrer.username)}/${key}`;
-      return `<div class="tag">${esc(p.label)}</div>
-        <div class="linkbox">
-          <input readonly value="${esc(link)}" id="l-${key}">
-          <button type="button" onclick="copyLink('l-${key}',this)">Copy</button>
-        </div>`;
-    })
-    .join('');
+  const link = `${config.baseUrl}/r/${encodeURIComponent(referrer.username)}`;
+  const names = Object.values(config.platforms).filter((p) => p.url).map((p) => p.label);
   return layout(
-    'Your referral links',
+    'Your referral link',
     `<div class="card">
       <h1>Welcome, ${esc(referrer.name)}</h1>
-      <p>Your username is <strong>${esc(referrer.username)}</strong>. Share the links below. Each person who joins through them is credited to you.</p>
-      ${boxes}
+      <p>Your username is <strong>${esc(referrer.username)}</strong>. Share this one link. Whoever taps it can join ${esc(names.join(', '))}, and each person who joins is credited to you.</p>
+      <div class="linkbox">
+        <input readonly value="${esc(link)}" id="mylink">
+        <button type="button" onclick="copyLink('mylink',this)">Copy</button>
+      </div>
       <p><a href="/">Register another person</a></p>
     </div>
     <script>
@@ -112,6 +107,30 @@ export function linksPage(referrer) {
           .then(function(){ btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = 'Copy'; }, 1500); });
       }
     </script>`,
+  );
+}
+
+/** The page a newcomer sees when they tap a referrer's single link: pick where to join. */
+export function choosePage(referrer) {
+  const open = Object.entries(config.platforms).filter(([, p]) => p.url);
+  const buttons = open
+    .map(
+      ([key, p]) =>
+        `<a class="btn" href="/r/${encodeURIComponent(referrer.username)}/${esc(key)}">Join ${esc(p.label)}</a>`,
+    )
+    .join('');
+  const labels = open.map(([, p]) => p.label).join(', ');
+  return layout(
+    `${referrer.name} invited you to join`,
+    `<div class="card">
+      <h1>${esc(referrer.name)} invited you</h1>
+      <p>Choose where you'd like to join. You can join all of them.</p>
+      ${buttons || '<p>Nothing is open for joining yet.</p>'}
+    </div>`,
+    {
+      description: `Tap to join: ${labels}.`,
+      path: `/r/${encodeURIComponent(referrer.username)}`,
+    },
   );
 }
 
@@ -151,6 +170,7 @@ export function joinPage({ referrer, platformKey, error = '', values = {} }) {
 }
 
 export function joinedPage({ referrer, platformKey, counted }) {
+  const others = Object.entries(config.platforms).filter(([key, p]) => key !== platformKey && p.url);
   const platform = config.platforms[platformKey];
   const note = counted
     ? `Thanks! This invite has been credited to <strong>${esc(referrer.name)}</strong>.`
@@ -162,6 +182,19 @@ export function joinedPage({ referrer, platformKey, counted }) {
       <p>${note}</p>
       <a class="btn" href="${esc(platform.url)}">Open ${esc(platform.label)}</a>
     </div>
+    ${
+      others.length
+        ? `<div class="card">
+      <h2>Join the others too</h2>
+      ${others
+        .map(
+          ([key, p]) =>
+            `<a class="btn" href="/r/${encodeURIComponent(referrer.username)}/${esc(key)}">Join ${esc(p.label)}</a>`,
+        )
+        .join('')}
+    </div>`
+        : ''
+    }
     <div class="card">
       <h2>Want to invite people too?</h2>
       <p>Register as a referrer to get your own links. Everyone who joins through them is counted for you.</p>
@@ -193,6 +226,7 @@ export function adminPage({ leaderboard }) {
       <h1>Referral dashboard</h1>
       <p>${leaderboard.length} referrers &middot; ${total} referred &middot; ${confirmed} confirmed</p>
       <p><small><strong>Referred</strong> = came through the link and filled in the form. <strong>Confirmed</strong> = you checked they really joined. Open a referrer to confirm people.</small></p>
+      <a class="btn" href="/admin/bulk">Bulk confirm WhatsApp joins</a>
       <div class="scroll"><table>
         <tr><th>#</th><th>Referrer</th>${platformCols}<th class="num">Referred</th><th class="num">Confirmed</th></tr>
         ${rows || '<tr><td colspan="8">No referrers yet.</td></tr>'}
@@ -239,5 +273,41 @@ export function adminReferrerPage({ referrer, referrals }) {
       </table></div>
     </div>`,
     { wide: true },
+  );
+}
+
+export function bulkPage({ error = '' } = {}) {
+  return layout(
+    'Bulk confirm',
+    `<div class="card">
+      <p><a href="/admin">&larr; Back to dashboard</a></p>
+      <h1>Bulk confirm WhatsApp joins</h1>
+      <p>Open your group on WhatsApp Web, open the member list, copy it, and paste it below. Everyone whose phone number matches a referred person is confirmed in one go.</p>
+      <p><small>Numbers can be written in any style, like 0241234567 or +233 24 123 4567. Put one on each line. Members you've saved in your contacts show as names on WhatsApp, not numbers, so those can't be matched. You can still confirm them one by one.</small></p>
+      ${error ? `<div class="error">${esc(error)}</div>` : ''}
+      <form method="post" action="/admin/bulk">
+        <label for="members">Group members</label>
+        <textarea id="members" name="members" rows="10" required
+          style="width:100%;padding:12px;border:1px solid #cfd3d9;border-radius:10px;font-size:1rem;font-family:inherit"></textarea>
+        <button type="submit">Check and confirm</button>
+      </form>
+    </div>`,
+  );
+}
+
+export function bulkResultPage({ found, confirmedNow, alreadyConfirmed, notFound }) {
+  const shown = confirmedNow.slice(0, 50);
+  const names = shown.map((r) => `<li>${esc(r.name)} <small>(${esc(r.contact)})</small></li>`).join('');
+  const more = confirmedNow.length > shown.length ? `<p><small>and ${confirmedNow.length - shown.length} more</small></p>` : '';
+  return layout(
+    'Bulk confirm result',
+    `<div class="card">
+      <h1>${confirmedNow.length} confirmed</h1>
+      <p>We found <strong>${found}</strong> phone numbers in what you pasted.</p>
+      <p>${alreadyConfirmed} matched people were already confirmed. ${notFound} referred WhatsApp people are still unconfirmed, because their number wasn't in your list.</p>
+      ${names ? `<h2>Newly confirmed</h2><ul>${names}</ul>${more}` : ''}
+      <a class="btn" href="/admin">Back to dashboard</a>
+      <p class="foot"><a href="/admin/bulk">Paste another list</a></p>
+    </div>`,
   );
 }
