@@ -2,6 +2,8 @@ const env = process.env;
 
 export const config = {
   port: Number(env.PORT) || 3000,
+  // The admin site is a separate server. Locally give it its own ADMIN_PORT; on a host it uses the host's PORT.
+  adminPort: Number(env.ADMIN_PORT) || Number(env.PORT) || 3001,
   baseUrl: (env.BASE_URL || `http://localhost:${env.PORT || 3000}`).replace(/\/$/, ''),
   siteName: env.SITE_NAME || 'Join our community',
   adminPassword: env.ADMIN_PASSWORD || 'change-me',
