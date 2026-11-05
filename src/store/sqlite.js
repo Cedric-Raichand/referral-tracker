@@ -8,6 +8,9 @@ export function createStore({ dbPath }) {
   if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
 
+  // The public and admin sites can share this file, so wait a moment instead of failing when it is busy.
+  db.exec('PRAGMA busy_timeout = 5000;');
+
   db.exec(`
     PRAGMA foreign_keys = ON;
 
