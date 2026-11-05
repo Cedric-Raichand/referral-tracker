@@ -38,7 +38,7 @@ const css = `
   form.inline{margin:0}
 `;
 
-export function layout(title, body, { wide = false, description = '', path = '' } = {}) {
+export function layout(title, body, { wide = false, description = '', path = '', noindex = false } = {}) {
   const desc = description || 'Join through a friend’s link and get invited straight in.';
   const image = `${config.baseUrl}/cover.png`;
   // Open Graph tags make WhatsApp, Instagram, Snapchat etc. show a preview card with a cover image.
@@ -57,7 +57,7 @@ ${path ? `<meta property="og:url" content="${esc(config.baseUrl + path)}">` : ''
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title>${preview}
+<title>${esc(title)}</title>${noindex ? '\n<meta name="robots" content="noindex,nofollow">' : ''}${preview}
 <style>${css}</style>
 </head><body><main class="${wide ? 'wide' : ''}">${body}</main></body></html>`;
 }
@@ -79,8 +79,7 @@ export function registerPage({ error = '', values = {} } = {}) {
                placeholder="letters, numbers, underscore" value="${esc(values.username)}">
         <button type="submit">Get my links</button>
       </form>
-    </div>
-    <p class="foot"><a href="/admin">Admin login</a></p>`,
+    </div>`,
     { description: 'Register to get your own links and get credit for everyone you bring in.', path: '/' },
   );
 }
@@ -232,7 +231,7 @@ export function adminPage({ leaderboard }) {
         ${rows || '<tr><td colspan="8">No referrers yet.</td></tr>'}
       </table></div>
     </div>`,
-    { wide: true },
+    { wide: true, noindex: true },
   );
 }
 
@@ -272,7 +271,7 @@ export function adminReferrerPage({ referrer, referrals }) {
         ${rows || '<tr><td colspan="5">No one referred yet.</td></tr>'}
       </table></div>
     </div>`,
-    { wide: true },
+    { wide: true, noindex: true },
   );
 }
 
@@ -292,6 +291,7 @@ export function bulkPage({ error = '' } = {}) {
         <button type="submit">Check and confirm</button>
       </form>
     </div>`,
+    { noindex: true },
   );
 }
 
@@ -309,5 +309,6 @@ export function bulkResultPage({ found, confirmedNow, alreadyConfirmed, notFound
       <a class="btn" href="/admin">Back to dashboard</a>
       <p class="foot"><a href="/admin/bulk">Paste another list</a></p>
     </div>`,
+    { noindex: true },
   );
 }
