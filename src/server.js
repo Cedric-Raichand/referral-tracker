@@ -38,7 +38,7 @@ export async function handle(req, res) {
     if (!isValidUsername(username)) {
       return send(res, 400, registerPage({ error: 'Username must be 3-20 characters: letters, numbers or underscore.', values }));
     }
-    if (['admin', 'bulk', 'confirm'].includes(username)) {
+    if (['admin', 'bulk', 'confirm', 'password'].includes(username)) {
       return send(res, 409, registerPage({ error: 'That username is taken. Try another.', values }));
     }
     const result = await createReferrer({ name, phone, username });
