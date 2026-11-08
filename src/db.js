@@ -8,6 +8,8 @@ const store = config.mongoUri
 
 export const storageKind = store.kind;
 export const {
+  getSetting,
+  setSetting,
   createReferrer,
   getReferrerByUsername,
   getReferrerById,
