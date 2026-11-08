@@ -98,4 +98,13 @@ export function storeContract(label, makeStore) {
     const reset = await store.getReferralsByPlatform('whatsapp');
     assert.equal(reset.every((r) => !r.confirmed), true);
   });
+
+  test(`${label}: settings can be saved and changed`, async () => {
+    assert.equal(await store.getSetting('admin_password'), undefined);
+    await store.setSetting('admin_password', 'first');
+    assert.equal(await store.getSetting('admin_password'), 'first');
+    await store.setSetting('admin_password', 'second');
+    assert.equal(await store.getSetting('admin_password'), 'second');
+    assert.equal(await store.getSetting('something_else'), undefined);
+  });
 }
