@@ -230,6 +230,8 @@ export function adminPage({ leaderboard }) {
         <tr><th>#</th><th>Referrer</th>${platformCols}<th class="num">Referred</th><th class="num">Confirmed</th></tr>
         ${rows || '<tr><td colspan="8">No referrers yet.</td></tr>'}
       </table></div>
+      <p class="foot"><a href="/admin/password">Change password</a></p>
+      <form class="inline" method="post" action="/logout"><button class="small grey" type="submit" style="margin-top:12px">Log out</button></form>
     </div>`,
     { wide: true, noindex: true },
   );
@@ -308,6 +310,45 @@ export function bulkResultPage({ found, confirmedNow, alreadyConfirmed, notFound
       ${names ? `<h2>Newly confirmed</h2><ul>${names}</ul>${more}` : ''}
       <a class="btn" href="/admin">Back to dashboard</a>
       <p class="foot"><a href="/admin/bulk">Paste another list</a></p>
+    </div>`,
+    { noindex: true },
+  );
+}
+
+export function loginPage({ error = '' } = {}) {
+  return layout(
+    'Admin login',
+    `<div class="card">
+      <h1>Admin login</h1>
+      ${error ? `<div class="error">${esc(error)}</div>` : ''}
+      <form method="post" action="/login">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" autofocus>
+        <button type="submit">Log in</button>
+      </form>
+    </div>`,
+    { noindex: true },
+  );
+}
+
+export function passwordPage({ error = '', message = '' } = {}) {
+  return layout(
+    'Change password',
+    `<div class="card">
+      <p><a href="/admin">&larr; Back to dashboard</a></p>
+      <h1>Change password</h1>
+      ${error ? `<div class="error">${esc(error)}</div>` : ''}
+      ${message ? `<p class="ok">${esc(message)}</p>` : ''}
+      <form method="post" action="/admin/password">
+        <label for="current">Current password</label>
+        <input id="current" name="current" type="password" required autocomplete="current-password">
+        <label for="next">New password</label>
+        <input id="next" name="next" type="password" required minlength="10" autocomplete="new-password">
+        <label for="confirm">New password again</label>
+        <input id="confirm" name="confirm" type="password" required minlength="10" autocomplete="new-password">
+        <p><small>At least 10 characters.</small></p>
+        <button type="submit">Save new password</button>
+      </form>
     </div>`,
     { noindex: true },
   );
