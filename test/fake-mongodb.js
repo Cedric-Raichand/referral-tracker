@@ -48,8 +48,12 @@ class Collection {
     return doc ? { ...doc } : null;
   }
   find(filter = {}) { return new Cursor(this.docs.filter((d) => matches(d, filter))); }
-  async updateOne(filter, update) {
+  async updateOne(filter, update, opts = {}) {
     const doc = this.docs.find((d) => matches(d, filter));
+    if (!doc && opts.upsert) {
+      this.docs.push({ _id: filter._id, ...update.$set });
+      return { matchedCount: 0, upsertedCount: 1 };
+    }
     if (!doc) return { matchedCount: 0 };
     Object.assign(doc, update.$set);
     return { matchedCount: 1 };
