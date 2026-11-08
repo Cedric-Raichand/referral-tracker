@@ -17,6 +17,7 @@ export async function createStore({ mongoUri, mongoDb }, driver) {
   const database = client.db(mongoDb);
   const referrers = database.collection('referrers');
   const referrals = database.collection('referrals');
+  const settings = database.collection('settings');
 
   await referrers.createIndex({ username: 1 }, { unique: true });
   await referrals.createIndex({ platform: 1, contact: 1 }, { unique: true });
@@ -30,6 +31,15 @@ export async function createStore({ mongoUri, mongoDb }, driver) {
 
   return {
     kind: 'MongoDB',
+
+    async getSetting(key) {
+      const doc = await settings.findOne({ _id: key });
+      return doc ? doc.value : undefined;
+    },
+
+    async setSetting(key, value) {
+      await settings.updateOne({ _id: key }, { $set: { value: String(value) } }, { upsert: true });
+    },
 
     async createReferrer({ name, phone, username }) {
       try {
