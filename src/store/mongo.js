@@ -51,6 +51,14 @@ export async function createStore({ mongoUri, mongoDb }, driver) {
       }
     },
 
+    /** Remove a referrer and everyone they referred. Returns how many referred people went with them. */
+    async deleteReferrer(id) {
+      if (!isObjectIdString(id)) return { ok: false };
+      const removed = await referrals.deleteMany({ referrer_id: String(id) });
+      const gone = await referrers.deleteOne({ _id: new ObjectId(String(id)) });
+      return gone.deletedCount > 0 ? { ok: true, removedReferrals: removed.deletedCount } : { ok: false };
+    },
+
     async getReferrerByUsername(username) {
       return toRow(await referrers.findOne({ username }));
     },
