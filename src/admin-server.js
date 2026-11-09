@@ -2,12 +2,12 @@ import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { config } from './config.js';
 import {
-  storageKind, getSetting, setSetting, getReferrerByUsername, getReferrerById, getLeaderboard,
+  storageKind, getSetting, setSetting, deleteReferrer, getReferrerByUsername, getReferrerById, getLeaderboard,
   getReferralsFor, getReferralById, setConfirmed, getReferralsByPlatform, setConfirmedMany,
 } from './db.js';
 import { normalizeUsername, phoneKey, extractPhoneKeys } from './validate.js';
 import {
-  adminPage, adminReferrerPage, bulkPage, bulkResultPage, loginPage, passwordPage, notFoundPage,
+  adminPage, adminReferrerPage, deleteReferrerPage, bulkPage, bulkResultPage, loginPage, passwordPage, notFoundPage,
 } from './views.js';
 import { send, redirect, readForm, isSameSite, createHttpServer } from './http.js';
 import {
@@ -153,7 +153,21 @@ export async function handle(req, res) {
   }
 
   if (method === 'GET' && path === '/admin') {
-    return send(res, 200, adminPage({ leaderboard: await getLeaderboard() }));
+    const notice = url.searchParams.get('deleted') ? 'Referrer deleted.' : '';
+    return send(res, 200, adminPage({ leaderboard: await getLeaderboard(), notice }));
+  }
+
+  const del = path.match(/^\/admin\/([^/]+)\/delete$/);
+  if (del && (method === 'GET' || method === 'POST')) {
+    const referrer = await getReferrerByUsername(normalizeUsername(decodeURIComponent(del[1])));
+    if (!referrer) return send(res, 404, notFoundPage('Referrer not found.'));
+    if (method === 'GET') {
+      const people = await getReferralsFor(referrer.id);
+      return send(res, 200, deleteReferrerPage({ referrer, count: people.length }));
+    }
+    if (!isSameSite(req)) return send(res, 403, notFoundPage('Request blocked.'));
+    await deleteReferrer(referrer.id);
+    return redirect(res, '/admin?deleted=1');
   }
 
   const match = path.match(/^\/admin\/([^/]+)$/);
