@@ -32,6 +32,7 @@ const css = `
   .scroll{overflow-x:auto}
   a{color:#1f7a4d}
   .foot{text-align:center;font-size:.85rem;margin-top:8px}
+  .danger{background:#b42318}
   .small{width:auto;margin:0;padding:8px 12px;font-size:.85rem}
   .grey{background:#6b7280}
   .ok{color:#1f7a4d;font-weight:600;white-space:nowrap}
@@ -67,7 +68,7 @@ export function registerPage({ error = '', values = {} } = {}) {
     'Join the referral program',
     `<div class="card">
       <h1>Become a referrer</h1>
-      <p>Register to get your own links. Every person who joins through your link is counted for you.</p>
+      <p>Register to get your own link. Every person who joins through your link is counted for you.</p>
       ${error ? `<div class="error">${esc(error)}</div>` : ''}
       <form method="post" action="/register">
         <label for="name">Your name</label>
@@ -77,10 +78,10 @@ export function registerPage({ error = '', values = {} } = {}) {
         <label for="username">Username</label>
         <input id="username" name="username" required minlength="3" maxlength="20"
                placeholder="letters, numbers, underscore" value="${esc(values.username)}">
-        <button type="submit">Get my links</button>
+        <button type="submit">Get my link</button>
       </form>
     </div>`,
-    { description: 'Register to get your own links and get credit for everyone you bring in.', path: '/' },
+    { description: 'Register to get your own link and get credit for everyone you bring in.', path: '/' },
   );
 }
 
@@ -196,13 +197,13 @@ export function joinedPage({ referrer, platformKey, counted }) {
     }
     <div class="card">
       <h2>Want to invite people too?</h2>
-      <p>Register as a referrer to get your own links. Everyone who joins through them is counted for you.</p>
+      <p>Register as a referrer to get your own link. Everyone who joins through it is counted for you.</p>
       <a class="btn" href="/">Register as a referrer</a>
     </div>`,
   );
 }
 
-export function adminPage({ leaderboard }) {
+export function adminPage({ leaderboard, notice = '' }) {
   const platformCols = Object.values(config.platforms)
     .map((p) => `<th class="num">${esc(p.label)}</th>`)
     .join('');
@@ -223,6 +224,7 @@ export function adminPage({ leaderboard }) {
     'Admin',
     `<div class="card">
       <h1>Referral dashboard</h1>
+      ${notice ? `<p class="ok">${esc(notice)}</p>` : ''}
       <p>${leaderboard.length} referrers &middot; ${total} referred &middot; ${confirmed} confirmed</p>
       <p><small><strong>Referred</strong> = came through the link and filled in the form. <strong>Confirmed</strong> = you checked they really joined. Open a referrer to confirm people.</small></p>
       <a class="btn" href="/admin/bulk">Bulk confirm WhatsApp joins</a>
@@ -272,6 +274,7 @@ export function adminReferrerPage({ referrer, referrals }) {
         <tr><th>Name</th><th>Contact</th><th>Platform</th><th>Joined</th><th></th></tr>
         ${rows || '<tr><td colspan="5">No one referred yet.</td></tr>'}
       </table></div>
+      <a class="btn danger" href="/admin/${encodeURIComponent(referrer.username)}/delete">Delete this referrer</a>
     </div>`,
     { wide: true, noindex: true },
   );
@@ -349,6 +352,22 @@ export function passwordPage({ error = '', message = '' } = {}) {
         <p><small>At least 10 characters.</small></p>
         <button type="submit">Save new password</button>
       </form>
+    </div>`,
+    { noindex: true },
+  );
+}
+
+export function deleteReferrerPage({ referrer, count }) {
+  const people = count === 1 ? '1 person' : `${count} people`;
+  return layout(
+    'Delete referrer',
+    `<div class="card">
+      <h1>Delete ${esc(referrer.name)}?</h1>
+      <p>This removes <strong>${esc(referrer.name)}</strong> (${esc(referrer.username)}) and the <strong>${people}</strong> they referred. Their link stops working, and this can't be undone.</p>
+      <form method="post" action="/admin/${encodeURIComponent(referrer.username)}/delete">
+        <button class="danger" type="submit">Yes, delete</button>
+      </form>
+      <p class="foot"><a href="/admin/${encodeURIComponent(referrer.username)}">No, go back</a></p>
     </div>`,
     { noindex: true },
   );
