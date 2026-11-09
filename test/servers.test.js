@@ -118,6 +118,34 @@ test('bulk confirm works on the admin site', async () => {
   assert.match(dash, /3 referred &middot; 3 confirmed/);
 });
 
+test('the admin can delete a referrer and the people they referred', async () => {
+  await fetch(pub + '/register', post({ name: 'Kwame', phone: '0243000000', username: 'kwame' }));
+  await fetch(pub + '/r/kwame/whatsapp', post({ name: 'Joiner', contact: '0252000000' }));
+  const withCookie = { headers: { Cookie: session }, redirect: 'manual' };
+
+  assert.equal((await fetch(adm + '/admin/kwame/delete', { redirect: 'manual' })).status, 303); // needs login
+
+  const ask = await fetch(adm + '/admin/kwame/delete', withCookie);
+  assert.equal(ask.status, 200);
+  const askHtml = await ask.text();
+  assert.match(askHtml, /Delete Kwame\?/);
+  assert.match(askHtml, /1 person/);
+  assert.equal((await fetch(adm + '/admin/nobody/delete', withCookie)).status, 404);
+
+  const blocked = await fetch(adm + '/admin/kwame/delete', post({}, { Cookie: session, Origin: 'https://evil.example' }));
+  assert.equal(blocked.status, 403);
+  assert.match(await (await fetch(adm + '/admin', withCookie)).text(), /Kwame/); // still there
+
+  const done = await fetch(adm + '/admin/kwame/delete', post({}, { Cookie: session }));
+  assert.equal(done.status, 303);
+  assert.equal(done.headers.get('location'), '/admin?deleted=1');
+
+  const dash = await (await fetch(adm + '/admin?deleted=1', withCookie)).text();
+  assert.match(dash, /Referrer deleted/);
+  assert.equal(dash.includes('Kwame'), false);
+  assert.equal((await fetch(pub + '/r/kwame')).status, 404); // their link stops working
+});
+
 test('admin form posts from another website are blocked', async () => {
   const res = await fetch(adm + '/admin/bulk', post({ members: '+233 25 000 0001' }, { Cookie: session, Origin: 'https://evil.example' }));
   assert.equal(res.status, 403);
