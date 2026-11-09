@@ -107,4 +107,30 @@ export function storeContract(label, makeStore) {
     assert.equal(await store.getSetting('admin_password'), 'second');
     assert.equal(await store.getSetting('something_else'), undefined);
   });
+
+  test(`${label}: deleting a referrer removes them and the people they referred`, async () => {
+    await store.createReferrer({ name: 'Temp', phone: '0246666666', username: 'temp' });
+    await store.createReferrer({ name: 'Other', phone: '0247777777', username: 'other' });
+    const temp = await store.getReferrerByUsername('temp');
+    const other = await store.getReferrerByUsername('other');
+    await store.addReferral({ referrer: temp, platform: 'whatsapp', name: 'T1', contact: '0261000001' });
+    await store.addReferral({ referrer: temp, platform: 'instagram', name: 'T2', contact: 'temp_fan' });
+    await store.addReferral({ referrer: other, platform: 'whatsapp', name: 'O1', contact: '0261000002' });
+
+    const result = await store.deleteReferrer(temp.id);
+    assert.deepEqual(result, { ok: true, removedReferrals: 2 });
+
+    assert.equal(await store.getReferrerByUsername('temp'), undefined);
+    assert.equal(await store.getReferrerById(temp.id), undefined);
+    assert.equal((await store.getLeaderboard()).some((r) => r.username === 'temp'), false);
+    assert.equal((await store.getReferralsFor(other.id)).length, 1); // the other referrer is untouched
+
+    // their username and the people they referred can be used again
+    assert.equal((await store.createReferrer({ name: 'Temp again', phone: '0246666666', username: 'temp' })).ok, true);
+    const added = await store.addReferral({ referrer: other, platform: 'whatsapp', name: 'T1', contact: '0261000001' });
+    assert.equal(added.ok, true);
+
+    assert.deepEqual(await store.deleteReferrer(temp.id), { ok: false }); // already gone
+    assert.deepEqual(await store.deleteReferrer('not-an-id'), { ok: false });
+  });
 }
