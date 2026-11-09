@@ -72,6 +72,22 @@ export function createStore({ dbPath }) {
       }
     },
 
+    /** Remove a referrer and everyone they referred. Returns how many referred people went with them. */
+    async deleteReferrer(id) {
+      const n = toId(id);
+      if (!n) return { ok: false };
+      db.exec('BEGIN');
+      try {
+        const removed = db.prepare('DELETE FROM referrals WHERE referrer_id = ?').run(n).changes;
+        const gone = db.prepare('DELETE FROM referrers WHERE id = ?').run(n).changes;
+        db.exec('COMMIT');
+        return gone > 0 ? { ok: true, removedReferrals: Number(removed) } : { ok: false };
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+    },
+
     async getReferrerByUsername(username) {
       return db.prepare('SELECT * FROM referrers WHERE username = ?').get(username);
     },
