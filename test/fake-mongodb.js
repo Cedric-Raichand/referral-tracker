@@ -47,6 +47,17 @@ class Collection {
     const doc = this.docs.find((d) => matches(d, filter));
     return doc ? { ...doc } : null;
   }
+  async deleteOne(filter) {
+    const i = this.docs.findIndex((d) => matches(d, filter));
+    if (i < 0) return { deletedCount: 0 };
+    this.docs.splice(i, 1);
+    return { deletedCount: 1 };
+  }
+  async deleteMany(filter) {
+    const before = this.docs.length;
+    this.docs = this.docs.filter((d) => !matches(d, filter));
+    return { deletedCount: before - this.docs.length };
+  }
   find(filter = {}) { return new Cursor(this.docs.filter((d) => matches(d, filter))); }
   async updateOne(filter, update, opts = {}) {
     const doc = this.docs.find((d) => matches(d, filter));
