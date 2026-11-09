@@ -77,5 +77,6 @@ Admin site (every page except the login needs the admin to be logged in):
 | `GET/POST /login`, `POST /logout` | Admin login and logout |
 | `GET/POST /admin/password` | Change the admin password |
 | `GET /admin`, `/admin/:username` | Dashboard and per-referrer list with Confirm buttons |
+| `GET/POST /admin/:username/delete` | Ask, then delete a referrer together with the people they referred |
 | `POST /admin/confirm` | Confirm or undo one referred person |
 | `GET/POST /admin/bulk` | Paste the WhatsApp member list to confirm matching numbers |
