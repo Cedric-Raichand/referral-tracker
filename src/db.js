@@ -11,6 +11,7 @@ export const {
   getSetting,
   setSetting,
   createReferrer,
+  deleteReferrer,
   getReferrerByUsername,
   getReferrerById,
   addReferral,
